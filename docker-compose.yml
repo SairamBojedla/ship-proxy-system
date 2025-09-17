@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  offshore-proxy:
+    build:
+      context: .
+      dockerfile: Dockerfile.offshore
+    container_name: offshore-proxy
+    ports:
+      - "9999:9999"
+    networks:
+      - proxy-network
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  ship-proxy:
+    build:
+      context: .
+      dockerfile: Dockerfile.ship
+    container_name: ship-proxy
+    ports:
+      - "8080:8080"
+    environment:
+      - OFFSHORE_HOST=offshore-proxy
+      - OFFSHORE_PORT=9999
+    depends_on:
+      - offshore-proxy
+    networks:
+      - proxy-network
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    command: ["python", "-u", "ship_proxy.py", "--offshore-host", "offshore-proxy", "--offshore-port", "9999"]
+
+networks:
+  proxy-network:
+    driver: bridge
