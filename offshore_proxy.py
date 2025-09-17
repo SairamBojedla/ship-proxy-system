@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
-"""
-Offshore Proxy Server
-Receives requests from ship proxy over a single TCP connection and forwards them to destination servers.
-"""
+
 
 import socket
 import threading
@@ -14,7 +11,7 @@ from urllib.parse import urlparse
 import ssl
 import time
 
-# Configure logging
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
@@ -26,7 +23,7 @@ class OffshoreProxy:
         self.running = False
 
     def start(self):
-        """Start the offshore proxy server"""
+        
         try:
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -51,10 +48,10 @@ class OffshoreProxy:
             self.cleanup()
 
     def handle_ship_connection(self, conn):
-        """Handle persistent connection from ship proxy"""
+        
         try:
             while self.running:
-                # Read message header (4 bytes length + 1 byte type)
+                
                 header = self._recv_all(conn, 5)
                 if not header:
                     break
@@ -62,19 +59,19 @@ class OffshoreProxy:
                 length = struct.unpack('>I', header[:4])[0]
                 msg_type = header[4]
 
-                if msg_type != 0:  # Expect request type
+                if msg_type != 0: 
                     logger.warning(f"Unexpected message type: {msg_type}")
                     continue
 
-                # Read request data
+                
                 request_data = self._recv_all(conn, length)
                 if not request_data:
                     break
 
-                # Process the request
+               
                 response = self.process_request(request_data)
 
-                # Send response back
+                
                 self.send_message(conn, 1, response)
 
         except Exception as e:
@@ -93,10 +90,10 @@ class OffshoreProxy:
             method, url, version = request_line.split(' ', 2)
 
             if method == 'CONNECT':
-                # Handle HTTPS CONNECT request
+                
                 return self.handle_connect_request(url)
             else:
-                # Handle regular HTTP request
+                
                 return self.handle_http_request(request_str, url)
 
         except Exception as e:
@@ -104,14 +101,14 @@ class OffshoreProxy:
             return self.create_error_response(500, "Internal Server Error")
 
     def handle_http_request(self, request_str, url):
-        """Handle regular HTTP requests"""
+        
         try:
             parsed_url = urlparse(url)
             host = parsed_url.hostname
             port = parsed_url.port or (443 if parsed_url.scheme == 'https' else 80)
 
             if not host:
-                # Extract host from headers if not in URL
+                
                 lines = request_str.split('\r\n')
                 for line in lines[1:]:
                     if line.lower().startswith('host:'):
@@ -121,15 +118,15 @@ class OffshoreProxy:
             if not host:
                 return self.create_error_response(400, "Bad Request - No host specified")
 
-            # Create connection to target server
+            
             target_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             target_sock.settimeout(30)
             target_sock.connect((host, port))
 
-            # Send request to target server
+            
             target_sock.sendall(request_str.encode('utf-8'))
 
-            # Read response from target server
+            
             response = b''
             target_sock.settimeout(5)
             while True:
@@ -149,10 +146,9 @@ class OffshoreProxy:
             return self.create_error_response(502, "Bad Gateway")
 
     def handle_connect_request(self, target):
-        """Handle HTTPS CONNECT requests"""
+        
         try:
-            # For CONNECT method, just return connection established
-            # In a real implementation, this would set up tunneling
+            
             response = "HTTP/1.1 200 Connection Established\r\n\r\n"
             return response.encode('utf-8')
         except Exception as e:
@@ -160,7 +156,7 @@ class OffshoreProxy:
             return self.create_error_response(502, "Bad Gateway")
 
     def create_error_response(self, status_code, status_text):
-        """Create HTTP error response"""
+        
         response = f"""HTTP/1.1 {status_code} {status_text}\r
 Content-Type: text/html\r
 Content-Length: 54\r
@@ -169,13 +165,13 @@ Content-Length: 54\r
         return response.encode('utf-8')
 
     def send_message(self, sock, msg_type, payload):
-        """Send message with protocol framing"""
+        
         length = len(payload)
         header = struct.pack('>I', length) + bytes([msg_type])
         sock.sendall(header + payload)
 
     def _recv_all(self, sock, length):
-        """Receive exactly length bytes"""
+        
         data = b''
         while len(data) < length:
             chunk = sock.recv(length - len(data))
@@ -185,13 +181,13 @@ Content-Length: 54\r
         return data
 
     def stop(self):
-        """Stop the proxy server"""
+        
         self.running = False
         if self.socket:
             self.socket.close()
 
     def cleanup(self):
-        """Clean up resources"""
+        
         if self.socket:
             self.socket.close()
             logger.info("Offshore proxy stopped")
